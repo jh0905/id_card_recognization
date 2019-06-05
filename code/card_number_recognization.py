@@ -76,7 +76,7 @@ def find_text_region(img):
 
 
 def detect(img):
-    # cv2.fastNlMeansDenoisingColored作用为去噪
+    # cv2.fastNlMeansDenoisingColored 作用为去噪
     gray = cv2.fastNlMeansDenoisingColored(img, None, 10, 3, 3, 3)
     coefficients = [0, 1, 1]
     m = np.array(coefficients).reshape((1, 3))
@@ -92,10 +92,10 @@ def detect(img):
     for box in region:
         h = abs(box[0][1] - box[2][1])
         w = abs(box[0][0] - box[2][0])
-        Xs = [i[0] for i in box]
-        Ys = [i[1] for i in box]
-        x1 = min(Xs)
-        y1 = min(Ys)
+        x_s = [i[0] for i in box]
+        y_s = [i[1] for i in box]
+        x1 = min(x_s)
+        y1 = min(y_s)
         cv2.drawContours(img, [box], 0, (0, 255, 0), 2)
         if w > 0 and h > 0 and x1 < gray.shape[1] / 2:
             id_img = grey_img(img[y1:y1 + h, x1:x1 + w])
@@ -104,19 +104,16 @@ def detect(img):
             return id_img
 
 
-def recognize_id_card(img_path, real_id):
+def recognize_id_card(img_path):
     img = cv2.imread(img_path, cv2.IMREAD_COLOR)
     img = cv2.resize(img, (428, 270), interpolation=cv2.INTER_CUBIC)
     id_img = detect(img)
     image = Image.fromarray(id_img)
-    print("checking")
-    print('the real id is ' + real_id)
-    result = pytesseract.image_to_string(image, config='-psm 7 id_card')
+    print("recognizing...")
+    result = pytesseract.image_to_string(image, lang='eng', config='--psm 7 digits')
+    # todo:这里把识别出来的乱码§直接替换为5，暂时发现修改配置无法处理，只好手动替换.
+    result = result.replace('§', '5')
     print('the detect result is ' + result)
-    if real_id == result:
-        print('ok,it is right')
-    else:
-        print('sorry,it is false')
     if debug:
         f, axarr = plt.subplots(2, 3)
         axarr[0, 0].imshow(cv2.imread(img_path))
@@ -129,6 +126,4 @@ def recognize_id_card(img_path, real_id):
 
 
 if __name__ == "__main__":
-    # recognize_id_card("/content/cql.jpg", "34022119910920161X")
-    # recognize_id_card("/content/wxb.jpg", "11204416541220243X")
-    recognize_id_card("../res/pic_input/2.jpg", "420982199509050637")
+    recognize_id_card("../res/pic_input/4.jpg")
