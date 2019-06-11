@@ -126,4 +126,4 @@ def recognize_id_card(img_path):
 
 
 if __name__ == "__main__":
-    recognize_id_card("../res/pic_input/4.jpg")
+    recognize_id_card("../res/pic_input/1.jpg")
