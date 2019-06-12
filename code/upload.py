@@ -122,7 +122,6 @@ def recognize_id_card(img_path):
     id_img = detect(img)
     image = Image.fromarray(id_img)
     result = pytesseract.image_to_string(image, lang='eng', config='--psm 7 digits')
-    # todo:这里把识别出来的乱码§直接替换为5，暂时发现修改配置无法处理，只好手动替换.
     result = result.replace('§', '5')
     return result
 
