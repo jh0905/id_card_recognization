@@ -30,8 +30,9 @@ def upload_file():
         path = '../res/pic_input/'
         now_time = int(round(time.time() * 1000))
         path_img = path + now_time + '.png'
+        print(path_img)
         f.save(path_img)
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8888)
+    app.run(host='127.0.0.1', port=8888)

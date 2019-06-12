@@ -3,17 +3,28 @@
  @project:id_card_recognization
  @author: Jiang Hui
  @language:Python 3.7.2 [GCC 7.3.0] :: Anaconda, Inc. on linux
- @time: 6/4/19 2:41 PM
- @cv2: 3.4.2
+ @time: 6/12/19 9:54 AM
  @desc:
 """
+
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 import pytesseract
 from PIL import Image
+import os
+from flask import Flask, request
+import time
+import json
 
-debug = 0  # 决定是否输出处理过程中的结果
+debug = 0  # 决定是否输出处理过程中的结果,0表示不输出.
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+app = Flask(__name__)
+
+app.config['SECRET_KEY'] = '123456'
+app.config['UPLOAD_FOLDER'] = '../res/uploaded_files/'  # 设置上传文件夹
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 
 def grey_img(img):
@@ -113,17 +124,28 @@ def recognize_id_card(img_path):
     result = pytesseract.image_to_string(image, lang='eng', config='--psm 7 digits')
     # todo:这里把识别出来的乱码§直接替换为5，暂时发现修改配置无法处理，只好手动替换.
     result = result.replace('§', '5')
-    print('the detect result is ' + result)
-    if debug:
-        f, axarr = plt.subplots(2, 3)
-        axarr[0, 0].imshow(cv2.imread(img_path))
-        axarr[0, 1].imshow(cv2.imread("../res/pic_output/gray.png"))
-        axarr[0, 2].imshow(cv2.imread("../res/pic_output/binary.png"))
-        axarr[1, 0].imshow(cv2.imread("../res/pic_output/dilation.png"))
-        axarr[1, 1].imshow(cv2.imread("../res/pic_output/contours.png"))
-        axarr[1, 2].imshow(cv2.imread("../res/pic_output/id_img.png"))
-        plt.show()
+    return result
 
 
-if __name__ == "__main__":
-    recognize_id_card("../res/pic_input/1.jpg")
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/recognition', methods=['POST'])
+def upload_file():
+    if request.method == 'POST':
+        file = request.files['file']
+        if file and allowed_file(file.filename):
+            now_time = int(round(time.time() * 1000))
+            filename = str(now_time) + '.' + file.filename.rsplit('.', 1)[1].lower()
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            # 保存完图片之后，开始进行身份证号码提取
+            number = recognize_id_card(file_path)
+            res = {'card_number': number}
+            return json.dumps(res)
+
+
+if __name__ == '__main__':
+    app.run()
