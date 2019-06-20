@@ -6,12 +6,13 @@
 
 &emsp;&emsp;opencv 3.4.2
 
-## 2.处理流程
-控制台输入:<code>python 3_id_card_server.py
+## 2.工作流程
 
-&emsp;&emsp;工作流程图:
 ![image](https://github.com/jh0905/id_card_recognization/blob/master/work_flow.png)
 
 ## 3.Postman测试
+
+**服务器端运行 3_id_card_server.py 文件**
+
 ![image](https://github.com/jh0905/id_card_recognization/blob/master/postman.png)
 
