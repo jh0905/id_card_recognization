@@ -10,7 +10,6 @@ import cv2
 import numpy as np
 import pytesseract
 from flask import Flask, request
-import time
 import json
 import os
 
@@ -20,7 +19,7 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app = Flask(__name__)
 
 app.config['SECRET_KEY'] = '123456'
-path = os.getcwd() + '/uploaded_files/'
+path = os.getcwd()
 if not os.path.exists(path):
     os.makedirs(path)
 app.config['UPLOAD_FOLDER'] = path  # 设置上传文件夹
@@ -198,9 +197,7 @@ def upload_file():
     if request.method == 'POST':
         file = request.files['file']
         if file and allowed_file(file.filename):
-            now_time = int(round(time.time() * 1000))
-            filename = str(now_time) + '.' + file.filename.rsplit('.', 1)[1].lower()
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
             file.save(file_path)
             # 保存完图片之后，开始进行身份证号码提取
 
@@ -224,6 +221,10 @@ def upload_file():
 
             # step 5:recognize the id number
             number = tesseract_ocr(image_correct)
+
+            # 图片识别完之后,再从服务器上删除该图片
+            if os.path.exists(file_path):
+                os.remove(file_path)
             # ********************* end **************************
 
             if number is None:
@@ -232,6 +233,7 @@ def upload_file():
                 res = {'code': -1, 'card_number': number, 'info': 'failure'}
             else:
                 res = {'code': 0, 'card_number': number, 'info': 'success'}
+
             return json.dumps(res)
 
 
