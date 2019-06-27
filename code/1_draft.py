@@ -11,12 +11,15 @@ import cv2
 import numpy as np
 import pytesseract
 
-pic_path = "../res/pic_input/14.jpg"
+pic_path = "../res/pic_input/43.jpeg"
 img = cv2.imread(pic_path, cv2.IMREAD_COLOR)
+print(img.shape)
+# 第一步处理，判断图片是竖直还是水平，如果是竖直放置的话，就旋转90度
+if img.shape[0] > img.shape[1]:
+    img = np.rot90(img)
 
 img = cv2.resize(img, (428, 270), interpolation=cv2.INTER_CUBIC)
 cv2.imwrite("../res/pic_output/out1.png", img)
-
 # h：参数决定滤波器强度。较高的h值可以更好地消除噪声，但也会删除图像的细节 (10 is ok)
 # hForColorComponents：与h相同，但仅适用于彩色图像。 （通常与h相同）
 # templateWindowSize：应该是奇数。 （recommended 7）
@@ -51,7 +54,7 @@ for i in range(1, len(binary) - 1):
     for j in range(1, len(binary[0]) - 1):
         if binary[i][j] == 255:
             # if成立,则说明当前像素点为孤立点
-            if binary[i - 1][j] + binary[i + 1][j] + binary[i][j - 1] + binary[i][j + 1] == 0:
+            if binary[i - 1][j] == binary[i + 1][j] == binary[i][j - 1] == binary[i][j + 1] == 0:
                 binary[i][j] = 0
 
 cv2.imwrite("../res/pic_output/out5.png", binary)

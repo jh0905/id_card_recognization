@@ -33,6 +33,9 @@ def img_preprocess(pic_path, coefs):
     :return: image
     '''
     img = cv2.imread(pic_path, cv2.IMREAD_COLOR)
+    # 预处理，判断图片是竖直还是水平，如果是竖直放置的话，就逆时针旋转90度
+    if img.shape[0] > img.shape[1]:
+        img = np.rot90(img)
     img_resize = cv2.resize(img, (428, 270), interpolation=cv2.INTER_CUBIC)  # resize照片为428*270
     img_denoise = cv2.fastNlMeansDenoisingColored(img_resize, None, 10, 10, 7, 21)  # 降噪
     # 转换成灰度图
