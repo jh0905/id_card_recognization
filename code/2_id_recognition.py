@@ -18,7 +18,9 @@ def img_preprocess(pic_path, coefs):
     :return: image
     '''
     img = cv2.imread(pic_path, cv2.IMREAD_COLOR)
-    # 预处理，判断图片是竖直还是水平，如果是竖直放置的话，就逆时针旋转90度
+    if img is None:
+        return
+        # 预处理，判断图片是竖直还是水平，如果是竖直放置的话，就逆时针旋转90度
     if img.shape[0] > img.shape[1]:
         img = np.rot90(img)
     img_resize = cv2.resize(img, (428, 270), interpolation=cv2.INTER_CUBIC)  # resize照片为428*270
@@ -120,6 +122,9 @@ def calc_degree(img):
     # 通过霍夫变换检测直线
     # 第4个参数就是阈值，阈值越大，检测精度越高
     lines = cv2.HoughLines(dst_image, 1, np.pi / 180, 15)
+    # 排除lines为None的异常情况
+    if lines is None:
+        return 0
     # 由于图像不同，阈值不好设定，因为阈值设定过高导致无法检测直线，阈值过低直线太多，速度很慢
     count = 0
     # 依次画出每条线段
@@ -176,11 +181,10 @@ def tesseract_ocr(img):
 
 
 if __name__ == '__main__':
-    picture_path = '../res/pic_input/43.jpeg'
+    picture_path = '../res/pic_input/35.jpeg'
 
     # step 1:preprocess the image
     image_resize, image_preprocessed = img_preprocess(picture_path, [0, 1, 1])
-
     # step 2:find id number_region
     number_region = find_number_region(image_preprocessed)
 

@@ -33,6 +33,9 @@ def img_preprocess(pic_path, coefs):
     :return: image
     '''
     img = cv2.imread(pic_path, cv2.IMREAD_COLOR)
+    # 检查异常，如果图片路径出错，则返回
+    if img is None:
+        return
     # 预处理，判断图片是竖直还是水平，如果是竖直放置的话，就逆时针旋转90度
     if img.shape[0] > img.shape[1]:
         img = np.rot90(img)
@@ -135,6 +138,9 @@ def calc_degree(img):
     # 通过霍夫变换检测直线
     # 第4个参数就是阈值，阈值越大，检测精度越高
     lines = cv2.HoughLines(dst_image, 1, np.pi / 180, 15)
+    # 排除lines为None的异常情况
+    if lines is None:
+        return 0
     # 由于图像不同，阈值不好设定，因为阈值设定过高导致无法检测直线，阈值过低直线太多，速度很慢
     count = 0
     # 依次画出每条线段
@@ -206,8 +212,11 @@ def upload_file():
 
             # ********************* begin **************************
             # step 1:preprocess the image
-            image_resize, image_preprocessed = img_preprocess(file_path, [0, 1, 1])
-
+            try:
+                image_resize, image_preprocessed = img_preprocess(file_path, [0, 1, 1])
+            except TypeError:
+                res = {'code': -1, 'card_number': '-1', 'info': 'There is a problem with the input image.'}
+                return json.dumps(res)
             # step 2:find id number_region
             number_region = find_number_region(image_preprocessed)
 
@@ -216,8 +225,17 @@ def upload_file():
                 image_resize, image_preprocessed = img_preprocess(file_path, [0, 1, 0])
                 number_region = find_number_region(image_preprocessed)
 
+            # 如果还是找不到身份证号码所在区域，我们认为图片质量不行，需要重新上传
+            if len(number_region) == 0:
+                res = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area'}
+                return json.dumps(res)
+
             # step 3:get id number image
             image_id_number = get_number_img(image_resize, number_region)
+            # 如果找不到身份证号码所在区域
+            if image_id_number is None:
+                res = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area'}
+                return json.dumps(res)
 
             # step 4:horizontal correct the image, if necessary.
             image_correct = horizontal_correct(image_id_number)
@@ -231,11 +249,11 @@ def upload_file():
             # ********************* end **************************
 
             if number is None:
-                res = {'code': -1, 'card_number': '-1', 'info': 'The photo has too low pixel to be identified!'}
+                res = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area!'}
             elif len(number) != 18:
-                res = {'code': -1, 'card_number': number, 'info': 'failure'}
+                res = {'code': -1, 'card_number': number, 'info': 'The identified result is incorrect!'}
             else:
-                res = {'code': 0, 'card_number': number, 'info': 'success'}
+                res = {'code': 0, 'card_number': number, 'info': 'Success!'}
 
             return json.dumps(res)
 

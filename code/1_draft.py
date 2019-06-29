@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 import pytesseract
 
-pic_path = "../res/pic_input/43.jpeg"
+pic_path = "../res/pic_input/38.jpeg"
 img = cv2.imread(pic_path, cv2.IMREAD_COLOR)
 print(img.shape)
 # 第一步处理，判断图片是竖直还是水平，如果是竖直放置的话，就旋转90度
@@ -187,6 +187,9 @@ def calc_degree(img):
     # 通过霍夫变换检测直线
     # 第4个参数就是阈值，阈值越大，检测精度越高
     lines = cv2.HoughLines(dst_image, 1, np.pi / 180, 15)
+    # 排除lines为None的异常情况
+    if lines is None:
+        return 0
     # 由于图像不同，阈值不好设定，因为阈值设定过高导致无法检测直线，阈值过低直线太多，速度很慢
     count = 0
     # 依次画出每条线段
