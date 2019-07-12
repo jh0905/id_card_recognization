@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 import pytesseract
 
-pic_path = "../res/pic_input/38.jpeg"
+pic_path = "../res/pic_input/44.jpg"
 img = cv2.imread(pic_path, cv2.IMREAD_COLOR)
 print(img.shape)
 # 第一步处理，判断图片是竖直还是水平，如果是竖直放置的话，就旋转90度

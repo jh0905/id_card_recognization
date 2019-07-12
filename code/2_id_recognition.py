@@ -180,8 +180,8 @@ def tesseract_ocr(img):
     return id_number
 
 
-if __name__ == '__main__':
-    picture_path = '../res/pic_input/35.jpeg'
+def main():
+    picture_path = '../res/pic_input/44.jpg'
 
     # step 1:preprocess the image
     image_resize, image_preprocessed = img_preprocess(picture_path, [0, 1, 1])
@@ -202,3 +202,10 @@ if __name__ == '__main__':
     # step 5:recognize the id number
     number = tesseract_ocr(image_correct)
     print('result is :', number)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception:
+        print(Exception.args)

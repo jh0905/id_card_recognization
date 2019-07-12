@@ -201,6 +201,52 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def main(file_path):
+    # ********************* begin **************************
+    # step 1:preprocess the image
+    image_resize, image_preprocessed = img_preprocess(file_path, [0, 1, 1])
+
+    # step 2:find id number_region
+    number_region = find_number_region(image_preprocessed)
+
+    # 以[0,1,1]作为灰度化转换参数时,偶尔导致找不到身份证号码所在区域,所以如果出错,用[0,1,0]进行转换
+    if len(number_region) == 0:
+        image_resize, image_preprocessed = img_preprocess(file_path, [0, 1, 0])
+        number_region = find_number_region(image_preprocessed)
+
+    # 如果还是找不到身份证号码所在区域，我们认为图片质量不行，需要重新上传
+    if len(number_region) == 0:
+        res = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area'}
+        return json.dumps(res)
+
+    # step 3:get id number image
+    image_id_number = get_number_img(image_resize, number_region)
+    # 如果找不到身份证号码所在区域
+    if image_id_number is None:
+        res = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area'}
+        return json.dumps(res)
+
+    # step 4:horizontal correct the image, if necessary.
+    image_correct = horizontal_correct(image_id_number)
+
+    # step 5:recognize the id number
+    number = tesseract_ocr(image_correct)
+
+    # 图片识别完之后,再从服务器上删除该图片
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    # ********************* end **************************
+
+    if number is None:
+        res = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area!'}
+    elif len(number) != 18:
+        res = {'code': -1, 'card_number': number, 'info': 'The identified result is incorrect!'}
+    else:
+        res = {'code': 0, 'card_number': number, 'info': 'Success!'}
+
+    return res
+
+
 @app.route('/recognition', methods=['POST'])
 def upload_file():
     if request.method == 'POST':
@@ -209,53 +255,16 @@ def upload_file():
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
             file.save(file_path)
             # 保存完图片之后，开始进行身份证号码提取
-
-            # ********************* begin **************************
-            # step 1:preprocess the image
             try:
-                image_resize, image_preprocessed = img_preprocess(file_path, [0, 1, 1])
-            except TypeError:
-                res = {'code': -1, 'card_number': '-1', 'info': 'There is a problem with the input image.'}
-                return json.dumps(res)
-            # step 2:find id number_region
-            number_region = find_number_region(image_preprocessed)
-
-            # 以[0,1,1]作为灰度化转换参数时,偶尔导致找不到身份证号码所在区域,所以如果出错,用[0,1,0]进行转换
-            if len(number_region) == 0:
-                image_resize, image_preprocessed = img_preprocess(file_path, [0, 1, 0])
-                number_region = find_number_region(image_preprocessed)
-
-            # 如果还是找不到身份证号码所在区域，我们认为图片质量不行，需要重新上传
-            if len(number_region) == 0:
-                res = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area'}
-                return json.dumps(res)
-
-            # step 3:get id number image
-            image_id_number = get_number_img(image_resize, number_region)
-            # 如果找不到身份证号码所在区域
-            if image_id_number is None:
-                res = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area'}
-                return json.dumps(res)
-
-            # step 4:horizontal correct the image, if necessary.
-            image_correct = horizontal_correct(image_id_number)
-
-            # step 5:recognize the id number
-            number = tesseract_ocr(image_correct)
+                result = main(file_path)
+            except Exception:
+                result = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area!'}
 
             # 图片识别完之后,再从服务器上删除该图片
             if os.path.exists(file_path):
                 os.remove(file_path)
-            # ********************* end **************************
 
-            if number is None:
-                res = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area!'}
-            elif len(number) != 18:
-                res = {'code': -1, 'card_number': number, 'info': 'The identified result is incorrect!'}
-            else:
-                res = {'code': 0, 'card_number': number, 'info': 'Success!'}
-
-            return json.dumps(res)
+            return json.dumps(result)
 
 
 if __name__ == '__main__':
