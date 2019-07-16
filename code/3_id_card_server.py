@@ -12,13 +12,18 @@ import pytesseract
 from flask import Flask, request
 import json
 import os
+import logging
+import traceback
+
+logging.basicConfig(filename='log.txt', level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 # ******************* flask服务器端基本配置 ***************************
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 app = Flask(__name__)
 
-app.config['SECRET_KEY'] = '123456'
+# app.config['SECRET_KEY'] = '123456'
 path = os.getcwd()
 if not os.path.exists(path):
     os.makedirs(path)
@@ -215,16 +220,16 @@ def main(file_path):
         number_region = find_number_region(image_preprocessed)
 
     # 如果还是找不到身份证号码所在区域，我们认为图片质量不行，需要重新上传
-    if len(number_region) == 0:
-        res = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area'}
-        return json.dumps(res)
+    # if len(number_region) == 0:
+    #     res = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area'}
+    #     return json.dumps(res)
 
     # step 3:get id number image
     image_id_number = get_number_img(image_resize, number_region)
     # 如果找不到身份证号码所在区域
-    if image_id_number is None:
-        res = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area'}
-        return json.dumps(res)
+    # if image_id_number is None:
+    #     res = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area'}
+    #     return json.dumps(res)
 
     # step 4:horizontal correct the image, if necessary.
     image_correct = horizontal_correct(image_id_number)
@@ -233,8 +238,8 @@ def main(file_path):
     number = tesseract_ocr(image_correct)
 
     # 图片识别完之后,再从服务器上删除该图片
-    if os.path.exists(file_path):
-        os.remove(file_path)
+    # if os.path.exists(file_path):
+    #     os.remove(file_path)
     # ********************* end **************************
 
     if number is None:
@@ -257,7 +262,8 @@ def upload_file():
             # 保存完图片之后，开始进行身份证号码提取
             try:
                 result = main(file_path)
-            except Exception:
+            except:
+                logging.error(traceback.format_exc())
                 result = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area!'}
 
             # 图片识别完之后,再从服务器上删除该图片
