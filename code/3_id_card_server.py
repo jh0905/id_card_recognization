@@ -84,35 +84,36 @@ def find_number_region(img):
     image, contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     card_number_region = []  # 用来保存最终返回的region
     max_area = 0  # 存储最大的矩形面积,用于筛选出身份证边框所在区域
+    regions = []  # 所有可能的身份证号码所在区域
     for i in range(len(contours)):
         # 返回点集cnt的最小外接矩形，(外接矩形中心坐标(x,y),(外接矩形宽，外接矩形高)，旋转角度)
         rect = cv2.minAreaRect(contours[i])
         box = np.int0(cv2.boxPoints(rect))  # box是外接矩形四个点的坐标,np.int0()用来去除小数点之后的数字
         width, height = rect[1]
-        if 0 not in box:  # 剔除一些越界的矩形,如果矩阵坐标中包含0,说明该矩阵不是我们想要找的矩阵框
-            if 9 < width / height < 16 or 9 < height / width < 16:
-                area = width * height
-                if area > max_area:
-                    max_area = area
-                    card_number_region = box
-    return card_number_region
+        if 0 not in box and 9 < width / height < 18 or 9 < height / width < 18:
+            regions.append(box)
+
+    return regions
 
 
-def get_number_img(origin_img, region):
+def get_number_img(origin_img, regions):
     '''
     根据上一步找到的边框,从原始图像中,裁剪出身份证号码区域的图像
     :param origin_img:
     :param region:
     :return: image
     '''
-    # 根据四个点的左边裁剪区域
-    h = abs(region[0][1] - region[2][1])
-    w = abs(region[0][0] - region[2][0])
-    x_s = [i[0] for i in region]
-    y_s = [i[1] for i in region]
-    x1 = min(x_s)
-    y1 = min(y_s)
-    return origin_img[y1:y1 + h, x1:x1 + w]
+    images = []
+    for region in regions:
+        # 根据四个点的左边裁剪区域
+        h = abs(region[0][1] - region[2][1])
+        w = abs(region[0][0] - region[2][0])
+        x_s = [i[0] for i in region]
+        y_s = [i[1] for i in region]
+        x1 = min(x_s)
+        y1 = min(y_s)
+        images.append(origin_img[y1:y1 + h, x1:x1 + w])
+    return images
 
 
 # ************* start 身份证号码图像区域水平矫正代码 start *******************
@@ -169,36 +170,49 @@ def calc_degree(img):
     return angle
 
 
-def horizontal_correct(img):
-    degree = calc_degree(img)
-    # 在测试中发现,如果扭曲角度角度(大于3),则进行水平矫正,否则不进行矫正
-    if abs(degree) > 5:
-        img_rotate = rotate_image(img, degree)
-        return img_rotate
-    return img
+def horizontal_correct(imgs):
+    images = []
+    for img in imgs:
+        degree = calc_degree(img)
+        # 在测试中发现,如果扭曲角度角度(大于3),则进行水平矫正,否则不进行矫正
+        if abs(degree) > 5:
+            img_rotate = rotate_image(img, degree)
+            images.append(img_rotate)
+        else:
+            images.append(img)
+    return images
 
 
 # ************* end 身份证号码图像区域水平矫正代码 end *******************
 
 
-def tesseract_ocr(img):
-    id_number = pytesseract.image_to_string(img, lang='eng', config='--psm 7 sfz')
+def tesseract_ocr(imgs):
+    for img in imgs:
+        id_number = pytesseract.image_to_string(img, lang='eng', config='--psm 7 sfz')
+        print(id_number)
 
-    # 手动处理,识别结果中可能出现的错误
+        # 手动处理,识别结果中可能出现的错误
 
-    # python清除字符串中非数字字符(xX§除外)
-    id_number = ''.join(list(filter(lambda ch: ch in '0123456789xX§', id_number)))
-    id_number = id_number.replace('x', 'X')
-    #
-    if len(id_number) == 19 and '§' in id_number:
-        id_number = id_number.replace('§', '')
-    else:
-        id_number = id_number.replace('§', '5')
+        # python清除字符串中非数字字符(xX§除外)
+        id_number = ''.join(list(filter(lambda ch: ch in '0123456789xX§', id_number)))
+        id_number = id_number.replace('x', 'X')
 
-    # 在测试中发现,tesseract会把4识别成46,所以这里直接手动替换
-    if len(id_number) == 19 and '46' in id_number:
-        id_number = id_number.replace('46', '4')
-    return id_number
+        if len(id_number) < 10:
+            continue
+        #
+        if len(id_number) == 19 and '§' in id_number:
+            id_number = id_number.replace('§', '')
+        else:
+            id_number = id_number.replace('§', '5')
+
+        # 在测试中发现,tesseract会把4识别成46,所以这里直接手动替换
+        if len(id_number) == 19 and '46' in id_number:
+            id_number = id_number.replace('46', '4')
+
+        # 在测试中发现,tesseract会把x识别成xx,所以这里手动删除一个X
+        if len(id_number) == 19 and 'XX' in id_number:
+            id_number = id_number.replace('XX', 'X')
+        return id_number
 
 
 def allowed_file(filename):
@@ -212,20 +226,10 @@ def main(file_path):
     image_resize, image_preprocessed = img_preprocess(file_path, [0, 1, 1])
 
     # step 2:find id number_region
-    number_region = find_number_region(image_preprocessed)
-
-    # 以[0,1,1]作为灰度化转换参数时,偶尔导致找不到身份证号码所在区域,所以如果出错,用[0,1,0]进行转换
-    if len(number_region) == 0:
-        image_resize, image_preprocessed = img_preprocess(file_path, [0, 1, 0])
-        number_region = find_number_region(image_preprocessed)
-
-    # 如果还是找不到身份证号码所在区域，我们认为图片质量不行，需要重新上传
-    # if len(number_region) == 0:
-    #     res = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area'}
-    #     return json.dumps(res)
+    number_regions = find_number_region(image_preprocessed)
 
     # step 3:get id number image
-    image_id_number = get_number_img(image_resize, number_region)
+    image_id_number = get_number_img(image_resize, number_regions)
     # 如果找不到身份证号码所在区域
     # if image_id_number is None:
     #     res = {'code': -1, 'card_number': '-1', 'info': 'Can Not Find the Card Number Area'}
