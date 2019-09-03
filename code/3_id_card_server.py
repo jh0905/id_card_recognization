@@ -19,7 +19,7 @@ logging.basicConfig(filename='log.txt', level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 # ******************* flask服务器端基本配置 ***************************
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'PNG', 'JPG', 'JPEG'}
 
 app = Flask(__name__)
 
@@ -189,7 +189,7 @@ def horizontal_correct(imgs):
 def tesseract_ocr(imgs):
     for img in imgs:
         id_number = pytesseract.image_to_string(img, lang='eng', config='--psm 7 sfz')
-        print(id_number)
+        # print(id_number)
 
         # 手动处理,识别结果中可能出现的错误
 
