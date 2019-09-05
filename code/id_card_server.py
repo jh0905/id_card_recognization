@@ -6,14 +6,7 @@
  @time: 9/5/19 2:23 PM
  @desc:
 """
-# encoding: utf-8
-"""
- @project:id_card_recognization
- @author: Jiang Hui
- @language:Python 3.7.2 [GCC 7.3.0] :: Anaconda, Inc. on linux
- @time: 6/19/19 10:48 AM
- @desc: 将id_recognition实现的功能,打包放在flask服务器上,提供API接口
-"""
+
 import cv2
 import numpy as np
 import pytesseract
@@ -68,7 +61,7 @@ def img_preprocess(pic_path, coefs):
     # 自定义的降噪代码,将孤立像素点去除
     img_binary_inv = denoise(img_binary_inv)
     # 膨胀操作,将图像变成一个个矩形框，用于下一步的筛选，找到身份证号码对应的区域
-    ele = cv2.getStructuringElement(cv2.MORPH_RECT, (10, 5))  # 经过测试,(10,5)为水平和垂直方向的膨胀size
+    ele = cv2.getStructuringElement(cv2.MORPH_RECT, (12, 6))  # 经过测试,(12,6)为水平和垂直方向的膨胀size
     img_dilation = cv2.dilate(img_binary_inv, ele, iterations=1)
     return img_resize, img_dilation
 
@@ -95,17 +88,16 @@ def find_number_region(img):
     :return: box
     '''
     _, contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    card_number_region = []  # 用来保存最终返回的region
-    max_area = 0  # 存储最大的矩形面积,用于筛选出身份证边框所在区域
     regions = []  # 所有可能的身份证号码所在区域
     for i in range(len(contours)):
         # 返回点集cnt的最小外接矩形，(外接矩形中心坐标(x,y),(外接矩形宽，外接矩形高)，旋转角度)
         rect = cv2.minAreaRect(contours[i])
         box = np.int0(cv2.boxPoints(rect))  # box是外接矩形四个点的坐标,np.int0()用来去除小数点之后的数字
         width, height = rect[1]
-        if 0 not in box and 9 < width / height < 18 or 9 < height / width < 18:
-            regions.append(box)
-
+        # print('width:{},height:{}'.format(width, height))
+        if 0 not in box:
+            if width / height > 8 or height / width > 8:
+                regions.append(box)
     return regions
 
 
@@ -113,7 +105,7 @@ def get_number_img(origin_img, regions):
     '''
     根据上一步找到的边框,从原始图像中,裁剪出身份证号码区域的图像
     :param origin_img:
-    :param region:
+    :param regions:
     :return: image
     '''
     images = []
@@ -200,6 +192,7 @@ def horizontal_correct(imgs):
 
 
 def tesseract_ocr(imgs):
+    # print(len(imgs))
     for img in imgs:
         id_number = pytesseract.image_to_string(img, lang='eng', config='--psm 7 sfz')
         # print(id_number)
@@ -229,7 +222,6 @@ def tesseract_ocr(imgs):
 
 
 def allowed_file(filename):
-    # print(filename[-3:])
     return (filename[-3:]).lower() in ALLOWED_EXTENSIONS
 
 
@@ -249,10 +241,10 @@ def main(file_path):
     #     return json.dumps(res)
 
     # step 4:horizontal correct the image, if necessary.
-    image_correct = horizontal_correct(image_id_number)
+    # image_correct = horizontal_correct(image_id_number)
 
     # step 5:recognize the id number
-    number = tesseract_ocr(image_correct)
+    number = tesseract_ocr(image_id_number)
 
     # 图片识别完之后,再从服务器上删除该图片
     # if os.path.exists(file_path):
