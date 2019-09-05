@@ -61,7 +61,7 @@ def img_preprocess(pic_path, coefs):
     # 自定义的降噪代码,将孤立像素点去除
     img_binary_inv = denoise(img_binary_inv)
     # 膨胀操作,将图像变成一个个矩形框，用于下一步的筛选，找到身份证号码对应的区域
-    ele = cv2.getStructuringElement(cv2.MORPH_RECT, (12, 6))  # 经过测试,(12,6)为水平和垂直方向的膨胀size
+    ele = cv2.getStructuringElement(cv2.MORPH_RECT, (10, 5))  # 经过测试,(10,5)为水平和垂直方向的膨胀size
     img_dilation = cv2.dilate(img_binary_inv, ele, iterations=1)
     return img_resize, img_dilation
 
@@ -200,9 +200,10 @@ def tesseract_ocr(imgs):
         # 手动处理,识别结果中可能出现的错误
 
         # python清除字符串中非数字字符(xX§除外)
-        id_number = ''.join(list(filter(lambda ch: ch in '0123456789xX§', id_number)))
+        id_number = ''.join(list(filter(lambda ch: ch in '0123456789xXkK§', id_number)))
         id_number = id_number.replace('x', 'X')
-
+        id_number = id_number.replace('k', 'X')
+        id_number = id_number.replace('K', 'X')
         if len(id_number) < 10:
             continue
         #
